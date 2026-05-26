@@ -7,7 +7,15 @@ const state = {
   pdfDocument: null,
   currentFileName: "",
   thumbnailWidth: 150,
+  renderGeneration: 0,
+  renderQueue: [],
+  activeRenders: 0,
 };
+
+const MAX_RENDER_CONCURRENCY = Math.min(
+  4,
+  Math.max(2, Math.floor((window.navigator.hardwareConcurrency || 4) / 2)),
+);
 
 const input = document.querySelector("#pdf-input");
 const gallery = document.querySelector("#gallery");
@@ -94,29 +102,29 @@ async function renderAllPages() {
   const documentRef = state.pdfDocument;
   if (!documentRef) return;
 
-  const pagePromises = Array.from({ length: documentRef.numPages }, (_, index) =>
-    renderPageCard(index + 1, documentRef),
-  );
+  const generation = ++state.renderGeneration;
+  state.renderQueue = [];
+  state.activeRenders = 0;
 
-  await Promise.all(pagePromises);
+  const pageNumbers = Array.from({ length: documentRef.numPages }, (_, index) => index + 1);
+  pageNumbers.forEach((pageNumber) => {
+    const card = createPageCard(pageNumber);
+    gallery.appendChild(card);
+    state.renderQueue.push({ pageNumber, documentRef, generation, card });
+  });
+
+  const workerCount = Math.min(MAX_RENDER_CONCURRENCY, state.renderQueue.length);
+  await Promise.all(Array.from({ length: workerCount }, () => runRenderWorker(generation)));
 }
 
-async function renderPageCard(pageNumber, documentRef) {
-  const page = await documentRef.getPage(pageNumber);
-  const viewport = page.getViewport({ scale: 1 });
-  const scale = state.thumbnailWidth / viewport.width;
-  const scaledViewport = page.getViewport({ scale });
-
+function createPageCard(pageNumber) {
   const card = document.createElement("article");
   card.className = "page-card";
+  card.dataset.pageNumber = String(pageNumber);
 
   const frame = document.createElement("div");
   frame.className = "page-frame";
-
-  const canvas = document.createElement("canvas");
-  const context = canvas.getContext("2d");
-  canvas.width = Math.floor(scaledViewport.width);
-  canvas.height = Math.floor(scaledViewport.height);
+  frame.dataset.state = "loading";
 
   const placeholder = document.createElement("div");
   placeholder.className = "loader";
@@ -128,13 +136,67 @@ async function renderPageCard(pageNumber, documentRef) {
   label.textContent = `Page ${pageNumber}`;
 
   card.append(frame, label);
-  gallery.appendChild(card);
+  return card;
+}
+
+async function runRenderWorker(generation) {
+  while (true) {
+    if (generation !== state.renderGeneration) return;
+
+    const nextTask = state.renderQueue.shift();
+    if (!nextTask) return;
+
+    state.activeRenders += 1;
+    try {
+      await renderPageCard(nextTask);
+    } finally {
+      state.activeRenders -= 1;
+    }
+  }
+}
+
+function createRenderContext(canvas) {
+  return (
+    canvas.getContext("2d", {
+      alpha: false,
+      colorSpace: "srgb",
+      desynchronized: true,
+    }) || canvas.getContext("2d")
+  );
+}
+
+async function renderPageCard({ pageNumber, documentRef, generation, card }) {
+  const page = await documentRef.getPage(pageNumber);
+  if (generation !== state.renderGeneration) return;
+
+  const viewport = page.getViewport({ scale: 1 });
+  const scale = state.thumbnailWidth / viewport.width;
+  const scaledViewport = page.getViewport({ scale });
+  const outputScale = Math.min(window.devicePixelRatio || 1, 2);
+
+  const frame = card.querySelector(".page-frame");
+  const canvas = document.createElement("canvas");
+  const context = createRenderContext(canvas);
+
+  const displayWidth = Math.max(1, Math.floor(scaledViewport.width));
+  const displayHeight = Math.max(1, Math.floor(scaledViewport.height));
+  canvas.width = Math.max(1, Math.floor(scaledViewport.width * outputScale));
+  canvas.height = Math.max(1, Math.floor(scaledViewport.height * outputScale));
+  canvas.style.width = `${displayWidth}px`;
+  canvas.style.height = `${displayHeight}px`;
+  canvas.dataset.displayWidth = String(displayWidth);
+  canvas.dataset.displayHeight = String(displayHeight);
 
   await page.render({
     canvasContext: context,
     viewport: scaledViewport,
+    transform: outputScale === 1 ? null : [outputScale, 0, 0, outputScale, 0, 0],
+    background: "rgb(255,255,255)",
   }).promise;
 
+  if (generation !== state.renderGeneration) return;
+
+  frame.dataset.state = "ready";
   frame.replaceChildren(canvas);
 }
 
@@ -193,16 +255,24 @@ async function exportGalleryAsPng() {
     const padding = 32;
     const labelHeight = 28;
 
+    if (state.activeRenders > 0 || state.renderQueue.length > 0) {
+      setStatus("Attends la fin du rendu avant l'export");
+      return;
+    }
+
     const renderedCards = cards
       .map((card, index) => {
         const canvas = card.querySelector("canvas");
         if (!canvas) return null;
 
+        const displayWidth = Number(canvas.dataset.displayWidth || canvas.width);
+        const displayHeight = Number(canvas.dataset.displayHeight || canvas.height);
+
         return {
           index,
           canvas,
-          width: canvas.width,
-          height: canvas.height,
+          width: displayWidth,
+          height: displayHeight,
         };
       })
       .filter(Boolean);
@@ -250,7 +320,7 @@ async function exportGalleryAsPng() {
       row.forEach((item) => {
         context.fillStyle = "#ffffff";
         context.fillRect(x, y, item.width, item.height);
-        context.drawImage(item.canvas, x, y);
+        context.drawImage(item.canvas, x, y, item.width, item.height);
 
         context.fillStyle = "#6f675d";
         context.font = '16px "Segoe UI", "Helvetica Neue", Arial, sans-serif';
