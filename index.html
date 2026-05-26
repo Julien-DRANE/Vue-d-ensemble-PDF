@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PDF Overview</title>
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="title-block">
+        <p class="eyebrow">PDF overview board</p>
+        <h1>Vue d'ensemble PDF</h1>
+        <p class="subtitle">Charge un PDF, ajuste la taille des vignettes, et vois toutes les pages d'un seul coup.</p>
+      </div>
+
+      <div class="controls">
+        <label class="upload-button" for="pdf-input">
+          <input id="pdf-input" type="file" accept="application/pdf">
+          <span>Choisir un PDF</span>
+        </label>
+
+        <label class="slider-group" for="thumb-size">
+          <span>Taille des vignettes</span>
+          <input id="thumb-size" type="range" min="90" max="280" value="150">
+          <strong id="thumb-size-value">150 px</strong>
+        </label>
+
+        <button id="export-button" class="secondary-button" type="button">Exporter en PNG</button>
+        <button id="fit-button" class="secondary-button" type="button">Ajuster à l'écran</button>
+      </div>
+    </header>
+
+    <section id="dropzone" class="dropzone" aria-label="Zone de dépôt PDF">
+      <div class="dropzone-copy">
+        <p class="dropzone-title">Dépose ton PDF ici</p>
+        <p class="dropzone-text">ou utilise le bouton ci-dessus pour ouvrir un fichier local.</p>
+      </div>
+      <div class="status-pill">
+        <span id="page-count">Aucun document</span>
+      </div>
+    </section>
+
+    <main>
+      <section id="empty-state" class="empty-state">
+        <p class="empty-title">Prêt pour la première planche-contact</p>
+        <p class="empty-text">Les pages du PDF apparaîtront ici sous forme de vignettes.</p>
+      </section>
+
+      <section id="gallery" class="gallery" aria-live="polite"></section>
+    </main>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
