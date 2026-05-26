@@ -28,6 +28,36 @@
           <strong id="thumb-size-value">150 px</strong>
         </label>
 
+        <section class="export-panel" aria-label="Options d'export">
+          <div class="export-panel-header">
+            <strong>Options d'export</strong>
+          </div>
+
+          <label class="select-group" for="export-background">
+            <span>Fond du PNG</span>
+            <select id="export-background">
+              <option value="cream">Clair</option>
+              <option value="gray">Gris</option>
+              <option value="black">Noir</option>
+            </select>
+          </label>
+
+          <label class="toggle-option" for="export-page-labels">
+            <input id="export-page-labels" type="checkbox" checked>
+            <span>Afficher les numéros de page</span>
+          </label>
+
+          <label class="toggle-option" for="export-hd">
+            <input id="export-hd" type="checkbox">
+            <span>Export HD x2</span>
+          </label>
+
+          <label class="toggle-option" for="export-super-hd">
+            <input id="export-super-hd" type="checkbox">
+            <span>Export Super HD x3</span>
+          </label>
+        </section>
+
         <button id="export-button" class="secondary-button" type="button">Exporter en PNG</button>
         <button id="fit-button" class="secondary-button" type="button">Ajuster à l'écran</button>
       </div>

@@ -79,7 +79,8 @@ h1 {
 
 .upload-button,
 .secondary-button,
-.slider-group {
+.slider-group,
+.export-panel {
   border-radius: 18px;
 }
 
@@ -129,6 +130,52 @@ h1 {
 
 .slider-group input {
   width: 100%;
+  accent-color: var(--accent);
+}
+
+.export-panel {
+  display: grid;
+  gap: 12px;
+  border: 1px solid var(--line);
+  background: var(--panel-strong);
+  padding: 14px 16px;
+}
+
+.export-panel-header strong,
+.select-group span,
+.toggle-option span {
+  font-size: 0.95rem;
+}
+
+.export-panel-header strong,
+.select-group span {
+  color: var(--muted);
+}
+
+.select-group {
+  display: grid;
+  gap: 8px;
+}
+
+.select-group select {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--text);
+  font: inherit;
+  padding: 0 12px;
+}
+
+.toggle-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text);
+}
+
+.toggle-option input {
   accent-color: var(--accent);
 }
 

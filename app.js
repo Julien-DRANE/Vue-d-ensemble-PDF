@@ -26,6 +26,31 @@ const thumbSizeValue = document.querySelector("#thumb-size-value");
 const dropzone = document.querySelector("#dropzone");
 const fitButton = document.querySelector("#fit-button");
 const exportButton = document.querySelector("#export-button");
+const exportBackground = document.querySelector("#export-background");
+const exportPageLabels = document.querySelector("#export-page-labels");
+const exportHd = document.querySelector("#export-hd");
+const exportSuperHd = document.querySelector("#export-super-hd");
+
+const EXPORT_BACKGROUNDS = {
+  cream: {
+    canvas: "#f4efe7",
+    page: "#ffffff",
+    text: "#6f675d",
+    suffix: "clair",
+  },
+  gray: {
+    canvas: "#2f3136",
+    page: "#ffffff",
+    text: "#eceff4",
+    suffix: "gris",
+  },
+  black: {
+    canvas: "#050505",
+    page: "#ffffff",
+    text: "#f5f5f5",
+    suffix: "noir",
+  },
+};
 
 input.addEventListener("change", async (event) => {
   const [file] = event.target.files || [];
@@ -45,6 +70,18 @@ fitButton.addEventListener("click", () => {
 
 exportButton.addEventListener("click", async () => {
   await exportGalleryAsPng();
+});
+
+exportHd.addEventListener("change", () => {
+  if (exportHd.checked) {
+    exportSuperHd.checked = false;
+  }
+});
+
+exportSuperHd.addEventListener("change", () => {
+  if (exportSuperHd.checked) {
+    exportHd.checked = false;
+  }
 });
 
 ["dragenter", "dragover"].forEach((eventName) => {
@@ -248,12 +285,16 @@ async function exportGalleryAsPng() {
   exportButton.textContent = "Export en cours...";
 
   try {
+    const backgroundKey = exportBackground.value;
+    const backgroundTheme = EXPORT_BACKGROUNDS[backgroundKey] || EXPORT_BACKGROUNDS.cream;
+    const includePageLabels = exportPageLabels.checked;
+    const exportScale = exportSuperHd.checked ? 3 : exportHd.checked ? 2 : 1;
     const galleryStyle = window.getComputedStyle(gallery);
     const columnTemplate = galleryStyle.gridTemplateColumns.trim();
     const columnCount = columnTemplate ? columnTemplate.split(" ").length : 1;
     const gap = Number.parseFloat(galleryStyle.gap) || 18;
     const padding = 32;
-    const labelHeight = 28;
+    const labelHeight = includePageLabels ? 28 : 0;
 
     if (state.activeRenders > 0 || state.renderQueue.length > 0) {
       setStatus("Attends la fin du rendu avant l'export");
@@ -304,11 +345,12 @@ async function exportGalleryAsPng() {
       gap * Math.max(0, rows.length - 1);
 
     const exportCanvas = document.createElement("canvas");
-    exportCanvas.width = exportWidth;
-    exportCanvas.height = exportHeight;
+    exportCanvas.width = exportWidth * exportScale;
+    exportCanvas.height = exportHeight * exportScale;
 
     const context = exportCanvas.getContext("2d");
-    context.fillStyle = "#f4efe7";
+    context.scale(exportScale, exportScale);
+    context.fillStyle = backgroundTheme.canvas;
     context.fillRect(0, 0, exportWidth, exportHeight);
 
     let y = padding;
@@ -318,14 +360,16 @@ async function exportGalleryAsPng() {
       let x = padding + Math.max(0, (exportWidth - padding * 2 - rowWidth) / 2);
 
       row.forEach((item) => {
-        context.fillStyle = "#ffffff";
+        context.fillStyle = backgroundTheme.page;
         context.fillRect(x, y, item.width, item.height);
         context.drawImage(item.canvas, x, y, item.width, item.height);
 
-        context.fillStyle = "#6f675d";
-        context.font = '16px "Segoe UI", "Helvetica Neue", Arial, sans-serif';
-        context.textAlign = "center";
-        context.fillText(`Page ${item.index + 1}`, x + item.width / 2, y + item.height + 20);
+        if (includePageLabels) {
+          context.fillStyle = backgroundTheme.text;
+          context.font = '16px "Segoe UI", "Helvetica Neue", Arial, sans-serif';
+          context.textAlign = "center";
+          context.fillText(`Page ${item.index + 1}`, x + item.width / 2, y + item.height + 20);
+        }
 
         x += item.width + gap;
       });
@@ -336,7 +380,9 @@ async function exportGalleryAsPng() {
     const fileStem = (state.currentFileName || "pdf-overview").replace(/\.pdf$/i, "");
     const link = document.createElement("a");
     link.href = exportCanvas.toDataURL("image/png");
-    link.download = `${fileStem}-overview.png`;
+    const hdSuffix = exportScale === 3 ? "-super-hd" : exportScale === 2 ? "-hd" : "";
+    const labelSuffix = includePageLabels ? "" : "-sans-num";
+    link.download = `${fileStem}-overview-${backgroundTheme.suffix}${labelSuffix}${hdSuffix}.png`;
     link.click();
 
     setStatus(`${state.pdfDocument.numPages} pages • export PNG prêt`);
